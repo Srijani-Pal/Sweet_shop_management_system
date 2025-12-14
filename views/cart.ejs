@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Shopping Cart</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .cart-container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #d35400; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 20px; }
+        .back-link { 
+            display: block; 
+            margin-bottom: 20px; 
+            color: #2980b9; 
+            text-decoration: none; 
+            font-weight: bold; 
+            font-size: 1.1em;
+        }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #e67e22; color: white; }
+        
+        /* Summary & Checkout */
+        .summary-wrapper { 
+            border-top: 1px solid #ddd; 
+            padding-top: 15px;
+        }
+        .cart-summary { 
+            text-align: right; 
+            font-size: 1.3em; 
+            font-weight: bold; 
+            margin-bottom: 20px; 
+            color: #2c3e50;
+        }
+        .checkout-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1em;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        .checkout-btn:hover { background-color: #219150; }
+        .empty-message { 
+            text-align: center; 
+            color: #7f8c8d; 
+            padding: 50px; 
+            border: 1px dashed #ccc; 
+            border-radius: 4px; 
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="cart-container">
+        <a href="/" class="back-link">← Continue Shopping</a>
+        <h1>🛒 Your Shopping Cart</h1>
+        
+        <div id="cart-content">
+            <p class="empty-message">Loading cart...</p>
+        </div>
+
+    </div>
+
+    <script>
+        const cartContentDiv = document.getElementById('cart-content');
+
+        // Function to fetch the cart data from the server
+        async function fetchCart() {
+            try {
+                // Fetch cart data from the server (GET /api/orders/cart)
+                const response = await fetch('/api/orders/cart');
+                
+                // If the backend middleware redirects (e.g., if session expired), 
+                // the frontend won't get a valid JSON response, so we check for status 
+                if (!response.ok) {
+                    // This handles API errors (e.g., 401 Unauthorized if not fully protected)
+                    // The protect middleware should ideally redirect, but this is a fallback.
+                    throw new Error('Could not fetch cart. Please ensure you are logged in.');
+                }
+                
+                const cart = await response.json();
+                renderCart(cart);
+
+            } catch (error) {
+                cartContentDiv.innerHTML = `<p class="empty-message" style="color:red;">Error: ${error.message}</p>`;
+                console.error(error);
+            }
+        }
+
+        // Function to display the cart data in HTML
+        function renderCart(cart) {
+            let html = '';
+
+            if (cart.orderItems.length === 0) {
+                html = '<p class="empty-message">Your cart is currently empty. Start adding sweets from the menu!</p>';
+            } else {
+                let itemsHtml = '<table><thead><tr><th>Sweet Name</th><th>Qty (kg)</th><th>Price/unit (₹)</th><th>Total (₹)</th></tr></thead><tbody>';
+                
+                cart.orderItems.forEach(item => {
+                    // Ensure calculation is based on numbers and fixed to two decimal places
+                    const lineTotal = (item.price * item.qty).toFixed(2);
+                    itemsHtml += `
+                        <tr>
+                            <td>${item.name}</td>
+                            <td>${item.qty}</td>
+                            <td>₹${item.price.toFixed(2)}</td>
+                            <td>₹${lineTotal}</td>
+                        </tr>
+                    `;
+                });
+                itemsHtml += '</tbody></table>';
+                
+                const summaryHtml = `
+                    <div class="summary-wrapper">
+                        <div class="cart-summary">
+                            Order Total: ₹${cart.totalPrice.toFixed(2)}
+                        </div>
+                        <button class="checkout-btn" onclick="placeOrder()">Place Order (Checkout)</button>
+                    </div>
+                `;
+
+                html = itemsHtml + summaryHtml;
+            }
+
+            cartContentDiv.innerHTML = html;
+        }
+
+        // Function to finalize the purchase (Place Order)
+        async function placeOrder() {
+            if (!confirm('Are you sure you want to finalize and place this order? Stock will be updated upon confirmation.')) {
+                return;
+            }
+
+            try {
+                // Send a POST request to the server to finalize the purchase
+                const response = await fetch('/api/orders/placeorder', {
+                    method: 'POST',
+                    // No body needed, as the server reads the cart from the user ID
+                });
+
+                if (response.ok) {
+                    alert('Order placed successfully! Thank you for shopping with us. Your stock has been updated.');
+                    // Reload the cart contents (which should now be empty)
+                    fetchCart(); 
+                } else {
+                    const result = await response.json();
+                    alert('Order failed: ' + (result.message || 'An unknown error occurred.'));
+                }
+            } catch (error) {
+                console.error('Checkout error:', error);
+                alert('A network or server error occurred during checkout.');
+            }
+        }
+        
+        // Start fetching cart data when the page loads
+        document.addEventListener('DOMContentLoaded', fetchCart);
+    </script>
+</body>
+</html>

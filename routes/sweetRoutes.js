@@ -1,17 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { 
-    createSweet, 
-    getSweets, 
-    updateSweet, 
-    deleteSweet 
+const {
+    getSweets,
+    createSweet,
+    updateSweet, // NEW
+    deleteSweet // NEW
 } = require('../controllers/sweetController');
+const { protect, admin } = require('../middleware/authMiddleware');
 
-// URL: http://localhost:5000/api/sweets
-router.route('/').post(createSweet).get(getSweets);
+router.route('/')
+    .get(getSweets) // Everyone can read (GET)
+    .post(protect, admin, createSweet); // Only Admin can create (POST)
 
-// URL: http://localhost:5000/api/sweets/:id 
-// (The :id is where you put the long ID number)
-router.route('/:id').put(updateSweet).delete(deleteSweet);
+router.route('/:id') // Routes that target a specific sweet by its ID
+    .put(protect, admin, updateSweet) // Only Admin can update (PUT)
+    .delete(protect, admin, deleteSweet); // Only Admin can delete (DELETE)
 
 module.exports = router;

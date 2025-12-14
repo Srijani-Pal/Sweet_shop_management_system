@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweet Shop Management</title>
+    <style>
+        /* Basic Styling to make it look nice */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f8f9fa; }
+        h1 { color: #d35400; text-align: center; }
+        
+        /* User Status Bar */
+        .status-bar {
+            max-width: 900px;
+            margin: 0 auto 20px auto;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-bar p { margin: 0; }
+        .status-bar button { 
+            background-color: #e74c3c; 
+            color: white; 
+            border: none; 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        .status-bar button:hover { background-color: #c0392b; }
+
+        /* Form Styling */
+        .form-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 900px;
+            margin: 0 auto 30px auto;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+        input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex: 1;
+        }
+        .add-button {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .add-button:hover { background-color: #219150; }
+
+        /* Table Styling */
+        table { width: 100%; max-width: 900px; margin: 0 auto; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        th, td { border-bottom: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #e67e22; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f1f1; }
+        .delete-btn {
+            background-color: #e74c3c; 
+            color: white; 
+            border: none; 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            cursor: pointer;
+        }
+        .delete-btn:hover { background-color: #c0392b; }
+        .buy-btn {
+            background-color: #2980b9; 
+            color: white; 
+            border: none; 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            cursor: pointer;
+        }
+        .buy-btn:hover { background-color: #2471a3; }
+    </style>
+</head>
+<body>
+
+    <h1>🍬 Sweet Shop Management</h1>
+
+    <div class="status-bar">
+        <% if (user) { %>
+            <p>Welcome, <b><%= user.name %></b>! (<%= user.isAdmin ? 'Admin' : 'Customer' %>)</p>
+            <a href="/cart" style="margin-right: 15px; text-decoration: none; color: #2ecc71; font-weight: bold;">
+                🛒 View Cart
+            </a>
+            <form action="/logout" method="POST">
+                <button type="submit">Logout</button>
+            </form>
+        <% } else { %>
+            <p>You are viewing as a Guest. <a href="/login">Log In</a> or <a href="/register">Register</a></p>
+        <% } %>
+    </div>
+    
+    <% if (user && user.isAdmin) { %>
+        <div class="form-container">
+            <form id="addSweetForm" style="display: flex; gap: 10px; width: 100%;">
+                <input type="text" id="name" placeholder="Sweet Name" required>
+                <input type="text" id="category" placeholder="Category (e.g. Milk)" required>
+                <input type="number" id="price" placeholder="Price (₹)" required>
+                <input type="number" id="stock" placeholder="Stock (kg)" required>
+                <button type="submit" class="add-button">➕ Add Sweet</button>
+            </form>
+        </div>
+    <% } %>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price (₹)</th>
+                <th>Stock (kg)</th>
+                <% if (user && user.isAdmin) { %>
+                    <th>Actions (Admin)</th>
+                <% } else if (user) { %>
+                    <th>Buy (Customer)</th>
+                <% } %>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (sweets.length > 0) { %>
+                <% sweets.forEach(sweet => { %>
+                    <tr id="sweet-<%= sweet._id %>">
+                        <td><%= sweet.name %></td>
+                        <td><%= sweet.category %></td>
+                        <td>₹<%= sweet.price %></td>
+                        <td><%= sweet.stock %></td>
+
+                        <% if (user && user.isAdmin) { %>
+                            <td>
+                                <button onclick="deleteSweet('<%= sweet._id %>')" class="delete-btn">Delete</button>
+                            </td>
+                        <% } else if (user) { %>
+                            <td>
+                                <% if (sweet.stock > 0) { %>
+                                    <input type="number" id="qty-<%= sweet._id %>" value="1" min="1" max="<%= sweet.stock %>" style="width: 50px;">
+                                    <button onclick="addToCart('<%= sweet._id %>')" class="buy-btn">
+                                        Add to Cart
+                                    </button>
+                                <% } else { %>
+                                    <span style="color: red; font-weight: bold;">Out of Stock</span>
+                                <% } %>
+                            </td>
+                        <% } %>
+                    </tr>
+                <% }) %>
+            <% } else { %>
+                <tr>
+                    <td colspan="<%= user && user.isAdmin ? '5' : '4' %>" style="text-align:center;">
+                        No sweets found. <%= user && user.isAdmin ? 'Use the form above to add some!' : '' %>
+                    </td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+
+    <script>
+        // --- ADD SWEET LOGIC (Admin Only) ---
+        const form = document.getElementById('addSweetForm');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault(); 
+
+                const name = document.getElementById('name').value;
+                const category = document.getElementById('category').value;
+                const price = document.getElementById('price').value;
+                const stock = document.getElementById('stock').value;
+
+                const response = await fetch('/api/sweets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, category, price, stock })
+                });
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const result = await response.json();
+                    alert('Error adding sweet: ' + (result.message || 'Access Denied (Not Admin).'));
+                }
+            });
+        }
+
+        // --- DELETE SWEET LOGIC (Admin Only) ---
+        async function deleteSweet(id) {
+            if (confirm('Are you sure you want to delete this sweet? This action cannot be undone.')) {
+                const response = await fetch(`/api/sweets/${id}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const result = await response.json();
+                    alert('Error deleting sweet: ' + (result.message || 'Access Denied (Not Admin).'));
+                }
+            }
+        }
+
+        // --- ADD TO CART LOGIC (Customer Only) ---
+        async function addToCart(sweetId) {
+            const qtyInput = document.getElementById(`qty-${sweetId}`);
+            const qty = qtyInput ? parseInt(qtyInput.value) : 1;
+
+            if (qty < 1 || isNaN(qty)) {
+                alert('Please enter a valid quantity.');
+                return;
+            }
+
+            const response = await fetch('/api/orders/cart/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sweetId, qty })
+            });
+
+            if (response.ok) {
+                alert(`Successfully added ${qty} unit/kg of sweet to your cart! Click "View Cart" above to checkout.`);
+            } else {
+                const result = await response.json();
+                alert('Error adding item: ' + (result.message || 'Check stock or server logs.'));
+            }
+        }
+    </script>
+
+</body>
+</html>
